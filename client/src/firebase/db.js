@@ -69,6 +69,49 @@ export const updateOrderStatus = async (orderId, newStatus) => {
 };
 
 /**
+ * Create a new order
+ * @param {object} orderData - { userId, phoneNumber, items, totalAmount, location }
+ */
+export const createOrder = async (orderData) => {
+  if (!orderData.items || orderData.items.length === 0) {
+    throw new Error("Order must contain at least one item.");
+  }
+  if (!orderData.phoneNumber) {
+    throw new Error("Phone number is required for M-Pesa payment.");
+  }
+
+  try {
+    const orderRef = await addDoc(collection(db, 'orders'), {
+      ...orderData,
+      status: 'Pending',
+      paymentStatus: 'unpaid',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return orderRef.id;
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+};
+
+/**
+ * Repeat a previous order
+ * @param {string} orderId 
+ */
+export const repeatOrder = async (orderId) => {
+  try {
+    const oldOrder = await getOrderById(orderId);
+    const { id, status, paymentStatus, createdAt, updatedAt, ...newOrderData } = oldOrder;
+    
+    return await createOrder(newOrderData);
+  } catch (error) {
+    console.error("Error repeating order:", error);
+    throw error;
+  }
+};
+
+/**
  * Create a new user profile in Firestore
  * @param {string} userId 
  * @param {object} userData 

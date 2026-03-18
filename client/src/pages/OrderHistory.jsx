@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import OrderCard from '../components/OrderCard';
 import { db } from '../firebase/config';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { Package, Search, Calendar, Filter, ChevronDown } from 'lucide-react';
+import { Package, Search, Calendar, Filter, ChevronDown, Loader2 } from 'lucide-react';
+import { repeatOrder } from '../firebase/db';
 
 const OrderHistory = ({ user }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [repeating, setRepeating] = useState(null); // Track which order is being repeated
   const [filter, setFilter] = useState('all'); // all, pending, delivered, cancelled
 
   useEffect(() => {
@@ -58,9 +60,23 @@ const OrderHistory = ({ user }) => {
     return order.status.toLowerCase() === filter.toLowerCase();
   });
 
-  const handleRepeatOrder = (order) => {
-    console.log("Repeating order:", order);
-    // Logic to add items to cart/modal will go here
+  const handleRepeatOrder = async (order) => {
+    setRepeating(order.id);
+    try {
+      const newOrderId = await repeatOrder(order.id);
+      
+      // Navigate to tracking or show success
+      alert(`Success! Your repeat order #${newOrderId.slice(-6)} has been placed. Please complete payment.`);
+      
+      // Optionally refresh the list
+      const ordersData = orders.map(o => o.id === order.id ? { ...o } : o);
+      setOrders(ordersData); 
+    } catch (error) {
+      console.error("Repeat order error:", error);
+      alert("Failed to repeat order. Please try again.");
+    } finally {
+      setRepeating(null);
+    }
   };
 
   return (
@@ -96,6 +112,7 @@ const OrderHistory = ({ user }) => {
               key={order.id} 
               order={order} 
               onRepeat={handleRepeatOrder} 
+              isRepeating={repeating === order.id}
             />
           ))
         ) : (

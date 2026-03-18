@@ -4,7 +4,7 @@ import RepeatOrderButton from './RepeatOrderButton';
 import { clsx } from 'clsx';
 import { Package, MapPin, ChevronRight } from 'lucide-react';
 
-const OrderCard = ({ order, onRepeat, onClick }) => {
+const OrderCard = ({ order, onRepeat, onClick, isRepeating }) => {
   const { id, items, totalAmount, status, createdAt, location } = order;
   const dateStr = new Date(createdAt?.seconds * 1000).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -56,7 +56,11 @@ const OrderCard = ({ order, onRepeat, onClick }) => {
         
         <div className="flex items-center space-x-2">
           {status === 'Delivered' && (
-            <RepeatOrderButton onRepeat={onRepeat} order={order} />
+            <RepeatOrderButton 
+              onRepeat={onRepeat} 
+              order={order} 
+              isRepeating={isRepeating} 
+            />
           )}
           <div className="p-2 text-gray-400 group-hover:text-primary-600 transition-colors">
             <ChevronRight className="w-5 h-5" />

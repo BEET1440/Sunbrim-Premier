@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Minus, CreditCard, ShoppingBag, Loader2 } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase/config';
+import { createOrder } from '../firebase/db';
 
 const OrderModal = ({ product, onClose, user }) => {
   const [quantity, setQuantity] = useState(1);
@@ -20,11 +21,28 @@ const OrderModal = ({ product, onClose, user }) => {
     setStatus('processing');
 
     try {
+      const formattedPhone = phoneNumber.startsWith('254') ? phoneNumber : `254${phoneNumber.replace(/^0+/, '')}`;
+      
+      // 1. Create order in Firestore first (as Pending)
+      const orderId = await createOrder({
+        userId: user?.uid || 'guest',
+        phoneNumber: formattedPhone,
+        items: [{
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: quantity
+        }],
+        totalAmount: total,
+        location: { address: 'Self-Pickup' } // Default for now
+      });
+
+      // 2. Initiate STK Push via Cloud Function
       const initiateStkPush = httpsCallable(functions, 'initiateStkPush');
       const response = await initiateStkPush({
-        phoneNumber: phoneNumber.startsWith('254') ? phoneNumber : `254${phoneNumber.replace(/^0+/, '')}`,
+        phoneNumber: formattedPhone,
         amount: total,
-        productId: product.id,
+        orderId: orderId, // Pass the newly created orderId
         productName: product.name,
         quantity: quantity,
       });

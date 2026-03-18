@@ -36,7 +36,7 @@ exports.initiateStkPush = functions.region('europe-west1').https.onCall(async (d
   // Check if user is authenticated
   // if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in');
 
-  const { phoneNumber, amount, productId, productName, quantity } = data;
+  const { phoneNumber, amount, orderId, productName, quantity } = data;
   const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
   const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
 
@@ -54,24 +54,17 @@ exports.initiateStkPush = functions.region('europe-west1').https.onCall(async (d
         PartyB: MPESA_SHORTCODE,
         PhoneNumber: phoneNumber,
         CallBackURL: MPESA_CALLBACK_URL,
-        AccountReference: 'SunbrimPremier',
+        AccountReference: orderId, // Use orderId as reference
         TransactionDesc: `Payment for ${productName}`,
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    // Save order as pending in Firestore
-    await db.collection('orders').add({
-      userId: context.auth?.uid || 'guest',
-      phoneNumber,
-      productId,
-      productName,
-      quantity,
-      amount,
-      status: 'pending_payment',
+    // Update existing order with M-Pesa references
+    await db.collection('orders').doc(orderId).update({
       merchantRequestId: response.data.MerchantRequestID,
       checkoutRequestId: response.data.CheckoutRequestID,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return { success: true, message: 'STK Push initiated' };
@@ -103,15 +96,19 @@ exports.mpesaCallback = functions.region('europe-west1').https.onRequest(async (
     if (ResultCode === 0) {
       // Payment Successful
       await orderDoc.ref.update({
-        status: 'paid',
+        status: 'Paid',
+        paymentStatus: 'completed',
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         mpesaReceipt: Body.stkCallback.CallbackMetadata.Item.find(item => item.Name === 'MpesaReceiptNumber').Value
       });
     } else {
       // Payment Failed
       await orderDoc.ref.update({
-        status: 'failed',
-        failureReason: ResultDesc
+        status: 'Failed',
+        paymentStatus: 'failed',
+        failureReason: ResultDesc,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
     }
 
