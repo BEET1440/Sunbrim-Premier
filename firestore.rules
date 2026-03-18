@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Rules for the 'products' collection
+    match /products/{productId} {
+      allow read: if true; // Products are publicly viewable
+      allow write: if isAdmin(); // Only admins can manage products
+    }
+
+    // Rules for the 'orders' collection
+    match /orders/{orderId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin(); // Users see their own orders, admins see all
+      allow create: if request.auth != null; // Any logged-in user can create an order
+      allow update: if isAdmin(); // Only admins can update order status (e.g., from 'Paid' to 'Baking')
+      allow delete: if isAdmin(); // Only admins can delete orders
+    }
+
+    // Rules for the 'payments' collection
+    match /payments/{paymentId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin(); // Users see their own payments
+      allow write: if false; // Payments should only be created/updated via Cloud Functions (Admin SDK)
+    }
+
+    // Rules for the 'deliveries' collection
+    match /deliveries/{deliveryId} {
+      allow read: if isAdmin(); // Only admins/staff see delivery routes
+      allow write: if isAdmin();
+    }
+
+    // Rules for the 'bulkOrders' collection
+    match /bulkOrders/{bulkOrderId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow write: if isOwner(resource.data.userId) || isAdmin();
+    }
+  }
+}
