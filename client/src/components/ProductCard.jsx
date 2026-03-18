@@ -16,6 +16,7 @@ const ProductCard = ({ product, onOrder }) => {
           src={image || "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=300&auto=format&fit=crop"} 
           alt={name}
           loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-2 right-2">

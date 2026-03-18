@@ -20,9 +20,34 @@ const OrderModal = ({ product, onClose, user }) => {
     setLoading(true);
     setStatus('processing');
 
-    try {
-      const formattedPhone = phoneNumber.startsWith('254') ? phoneNumber : `254${phoneNumber.replace(/^0+/, '')}`;
+    const formattedPhone = phoneNumber.startsWith('254') ? phoneNumber : `254${phoneNumber.replace(/^0+/, '')}`;
+
+    // Check if offline
+    if (!navigator.onLine) {
+      const offlineOrder = {
+        userId: user?.uid || 'guest',
+        phoneNumber: formattedPhone,
+        items: [{
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: quantity
+        }],
+        totalAmount: total,
+        location: { address: 'Self-Pickup (Offline)' },
+        createdAt: new Date().toISOString()
+      };
       
+      const offlineOrders = JSON.parse(localStorage.getItem('offline_orders') || '[]');
+      offlineOrders.push(offlineOrder);
+      localStorage.setItem('offline_orders', JSON.stringify(offlineOrders));
+      
+      setLoading(false);
+      setStatus('success');
+      return;
+    }
+
+    try {
       // 1. Create order in Firestore first (as Pending)
       const orderId = await createOrder({
         userId: user?.uid || 'guest',

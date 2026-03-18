@@ -23,17 +23,21 @@ const MOCK_PRODUCTS = [
   { id: '5', name: 'Hot Cross Buns', price: 40, category: 'buns', description: 'Traditional spicy hot cross buns.', isAvailable: false },
 ];
 
-const Home = () => {
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+const Home = ({ user }) => {
+  const [products, setProducts] = useState(() => {
+    const cached = localStorage.getItem('cached_products');
+    return cached ? JSON.parse(cached) : MOCK_PRODUCTS;
+  });
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // Fetch products from Firestore (real implementation)
-  /*
+  // Fetch products and update cache
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!navigator.onLine) return; // Don't fetch if offline, use cache
+      
       setLoading(true);
       try {
         const q = selectedCategory === 'all' 
@@ -42,7 +46,11 @@ const Home = () => {
         
         const querySnapshot = await getDocs(q);
         const productsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setProducts(productsData);
+        
+        if (productsData.length > 0) {
+          setProducts(productsData);
+          localStorage.setItem('cached_products', JSON.stringify(productsData));
+        }
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -51,7 +59,6 @@ const Home = () => {
     };
     fetchProducts();
   }, [selectedCategory]);
-  */
 
   const filteredProducts = products.filter(product => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
