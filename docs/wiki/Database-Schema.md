@@ -1,48 +1,66 @@
 # Database Schema
 
-Sunbrim Premier uses Cloud Firestore, a NoSQL database, to store and manage application data in real-time.
+Sunbrim Premier uses Cloud Firestore, a NoSQL database, to store and manage application data in real-time. For a more detailed design, see [FIRESTORE_SCHEMA.md](../FIRESTORE_SCHEMA.md).
 
 ## Firestore Collections
 
-### 1. `products`
-The `products` collection stores information about all items available in the bakery.
+### 1. `users`
+Stores profile information for customers, admins, and bulk buyers.
+- **`userId`**: string (Document ID)
+- **`phoneNumber`**: string (e.g., "+254712345678")
+- **`name`**: string
+- **`role`**: string ("customer" | "admin" | "bulkBuyer")
+- **`createdAt`**: timestamp
 
-- **`id`** (String): Unique identifier for each product.
-- **`name`** (String): Name of the product (e.g., "Soft Sandwich Bread").
-- **`price`** (Number): Price in KSh.
-- **`category`** (String): Bakery category (e.g., "bread", "cakes", "buns", "pastries", "cookies").
-- **`description`** (String): Brief product description.
-- **`image`** (String): URL to the product image.
-- **`isAvailable`** (Boolean): Availability status for the product.
-- **`createdAt`** (Timestamp): Time the product was added.
+### 2. `products`
+The bakery's product catalog.
+- **`productId`**: string (Document ID)
+- **`name`**: string (e.g., "Wholemeal Bread")
+- **`category`**: string ("bread" | "cakes" | "buns" | "pastries" | "cookies")
+- **`price`**: number (KES)
+- **`stockQuantity`**: number
+- **`availableToday`**: boolean (Quick toggle for daily availability)
+- **`imageUrl`**: string
 
-### 2. `orders`
-The `orders` collection stores customer orders and their status.
+### 3. `orders`
+Customer orders and status tracking.
+- **`orderId`**: string (Document ID)
+- **`userId`**: string (Reference to `users.userId`)
+- **`items`**: array<map> (Contains `productId`, `name`, `price`, `quantity`)
+- **`totalAmount`**: number
+- **`status`**: string ("Pending" | "Paid" | "Baking" | "OutForDelivery" | "Delivered")
+- **`paymentStatus`**: string ("unpaid" | "completed" | "failed")
+- **`location`**: map (address and coordinates)
+- **`createdAt`**: timestamp
 
-- **`id`** (String): Unique order identifier.
-- **`userId`** (String): Firebase Auth user ID or "guest".
-- **`phoneNumber`** (String): Customer's M-Pesa phone number in `254XXXXXXXXX` format.
-- **`productId`** (String): Reference to the product being ordered.
-- **`productName`** (String): Name of the product for quick reference.
-- **`quantity`** (Number): Quantity of the product.
-- **`amount`** (Number): Total order amount in KSh.
-- **`status`** (String): Order status (e.g., "pending_payment", "paid", "processing", "delivered", "failed").
-- **`merchantRequestId`** (String): M-Pesa Merchant Request ID.
-- **`checkoutRequestId`** (String): M-Pesa Checkout Request ID.
-- **`mpesaReceipt`** (String): M-Pesa Receipt Number (added after successful payment).
-- **`paidAt`** (Timestamp): Time the payment was confirmed.
-- **`createdAt`** (Timestamp): Time the order was initiated.
-- **`failureReason`** (String): Reason for payment failure (if applicable).
+### 4. `payments`
+Transaction history for M-Pesa payments.
+- **`paymentId`**: string (Document ID)
+- **`orderId`**: string (Reference to `orders.orderId`)
+- **`mpesaReceiptNumber`**: string (Unique from Safaricom)
+- **`amount`**: number
+- **`status`**: string ("Success" | "Failed")
+- **`timestamp`**: timestamp
 
-### 3. `settings` (Optional)
-A singleton collection for global app settings.
+### 5. `deliveries`
+Logistics and delivery routing.
+- **`deliveryId`**: string (Document ID)
+- **`orderIds`**: array<string> (Batch of orders in one trip)
+- **`routeArea`**: string (e.g., "Westlands")
+- **`status`**: string ("Preparing" | "InTransit" | "Completed")
 
-- **`storeStatus`** (Boolean): Open/Closed status of the bakery.
-- **`minimumOrderAmount`** (Number): Minimum value for a single order.
-- **`mpesaShortcode`** (String): The M-Pesa shortcode being used for payments.
+### 6. `bulkOrders`
+Specialized handling for B2B/Bulk buyers.
+- **`bulkOrderId`**: string (Document ID)
+- **`businessName`**: string
+- **`scheduledDates`**: array<timestamp> (Recurring order dates)
+- **`negotiatedPrice`**: number (Custom rate)
+- **`orderHistory`**: array<string> (References to past orders)
 
 ## Indexing Requirements
-- **`orders`**: An index is required for querying orders by `phoneNumber` and `createdAt` (descending) to support real-time tracking.
+- **`orders`**: `userId` (ASC) + `createdAt` (DESC) for history.
+- **`orders`**: `status` (ASC) + `createdAt` (DESC) for admin views.
+- **`products`**: `category` (ASC) + `price` (ASC) for sorted browsing.
 
 ---
 [Next: Payment Integration (M-Pesa)](Payment-Integration-M-Pesa) | [Back to Home](Home)
