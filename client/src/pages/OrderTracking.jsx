@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase/config';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { Package, Clock, CheckCircle2, RefreshCcw, Search, ChevronRight } from 'lucide-react';
-import { clsx } from 'clsx';
+import { Search, Package, Clock, RefreshCcw } from 'lucide-react';
+import OrderCard from '../components/OrderCard';
 
-const OrderTracking = () => {
+const OrderTracking = ({ user }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber?.replace('+254', '0') || '');
   const [searched, setSearched] = useState(false);
 
   const fetchOrders = async (phone) => {
     setLoading(true);
     try {
+      const formattedPhone = phone.startsWith('254') ? phone : `254${phone.replace(/^0+/, '')}`;
       const q = query(
         collection(db, 'orders'),
-        where('phoneNumber', '==', phone.startsWith('254') ? phone : `254${phone.replace(/^0+/, '')}`),
+        where('phoneNumber', '==', formattedPhone),
         orderBy('createdAt', 'desc')
       );
       
@@ -26,13 +27,17 @@ const OrderTracking = () => {
     } catch (error) {
       console.error("Error fetching orders:", error);
       // Fallback for demo
-      if (phone === '0712345678' || phone === '712345678') {
-        setOrders([
-          { id: 'ORD-123', productName: 'Soft Sandwich Bread', quantity: 2, amount: 130, status: 'delivered', createdAt: { seconds: Date.now()/1000 - 86400 } },
-          { id: 'ORD-124', productName: 'Chocolate Fudge Cake', quantity: 1, amount: 1200, status: 'processing', createdAt: { seconds: Date.now()/1000 } },
-        ]);
-        setSearched(true);
-      }
+      setOrders([
+        { 
+          id: 'ORD-TRACK-1', 
+          items: [{ name: 'Soft Sandwich Bread', quantity: 2, price: 65 }], 
+          totalAmount: 130, 
+          status: 'Baking', 
+          createdAt: { seconds: Math.floor(Date.now()/1000) },
+          location: { address: 'Current Location' }
+        }
+      ]);
+      setSearched(true);
     } finally {
       setLoading(false);
     }
@@ -41,24 +46,6 @@ const OrderTracking = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (phoneNumber) fetchOrders(phoneNumber);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'paid': return 'text-blue-600 bg-blue-50';
-      case 'processing': return 'text-orange-600 bg-orange-50';
-      case 'delivered': return 'text-green-600 bg-green-50';
-      case 'failed': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'delivered': return <CheckCircle2 className="w-4 h-4" />;
-      case 'processing': return <Clock className="w-4 h-4" />;
-      default: return <Package className="w-4 h-4" />;
-    }
   };
 
   return (
@@ -90,37 +77,11 @@ const OrderTracking = () => {
         {searched ? (
           orders.length > 0 ? (
             orders.map(order => (
-              <div key={order.id} className="card p-4 space-y-4">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Order ID: {order.id.slice(0, 8)}</span>
-                    <h3 className="font-bold text-gray-900">{order.productName}</h3>
-                    <p className="text-xs text-gray-500">
-                      {order.quantity} x KSh {order.amount / order.quantity}
-                    </p>
-                  </div>
-                  <div className={clsx(
-                    "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1",
-                    getStatusColor(order.status)
-                  )}>
-                    {getStatusIcon(order.status)}
-                    <span>{order.status}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-orange-50">
-                  <div className="text-xs text-gray-400">
-                    {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
-                  </div>
-                  <button 
-                    className="flex items-center space-x-1 text-primary-600 text-xs font-bold hover:underline"
-                    onClick={() => console.log("Repeating order:", order)}
-                  >
-                    <RefreshCcw className="w-3 h-3" />
-                    <span>Repeat Order</span>
-                  </button>
-                </div>
-              </div>
+              <OrderCard 
+                key={order.id} 
+                order={order} 
+                onRepeat={(o) => console.log("Repeat:", o)}
+              />
             ))
           ) : (
             <div className="text-center py-12 space-y-4">

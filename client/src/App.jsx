@@ -2,25 +2,33 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import OrderTracking from './pages/OrderTracking'
+import OrderHistory from './pages/OrderHistory'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
+import Profile from './pages/Profile'
 import Header from './components/Header'
 import Footer from './components/Footer'
+import { auth } from './firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Simple mock user state for initial development
   useEffect(() => {
-    const checkUser = async () => {
-      // Firebase auth logic will go here
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
-    };
-    checkUser();
+    });
+    return () => unsubscribe();
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-orange-50 space-y-4">
+      <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      <span className="text-sm font-bold text-primary-600 animate-pulse uppercase tracking-widest">SunbrimPremier</span>
+    </div>
+  );
 
   return (
     <Router>
@@ -28,9 +36,11 @@ function App() {
         <Header user={user} />
         <main className="flex-grow container mx-auto px-4 py-6 max-w-md">
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/track" element={<OrderTracking />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Home user={user} />} />
+            <Route path="/track" element={<OrderTracking user={user} />} />
+            <Route path="/history" element={user ? <OrderHistory user={user} /> : <Navigate to="/login" />} />
+            <Route path="/profile" element={user ? <Profile user={user} /> : <Navigate to="/login" />} />
+            <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -40,5 +50,6 @@ function App() {
     </Router>
   )
 }
+
 
 export default App

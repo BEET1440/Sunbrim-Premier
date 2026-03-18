@@ -128,6 +128,7 @@ const Home = () => {
       {selectedProduct && (
         <OrderModal 
           product={selectedProduct} 
+          user={user}
           onClose={() => setSelectedProduct(null)} 
         />
       )}
